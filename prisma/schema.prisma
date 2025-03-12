@@ -1,0 +1,351 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum role_type {
+  etudiant
+  professeur
+  administrateur
+}
+
+enum statut_inscription {
+  en_cours
+  complete
+  abandonne
+  en_attente
+}
+
+enum difficulte_exercice {
+  facile
+  moyen
+  difficile
+  expert
+}
+
+enum statut_soumission {
+  en_attente
+  corrige
+  en_revision
+  rejete
+}
+
+enum type_entite {
+  cours
+  etudiant
+  exercice
+  professeur
+}
+
+enum type_notification {
+  info
+  avertissement
+  erreur
+  succes
+}
+
+enum source_correction {
+  ia
+  professeur
+  mixte
+}
+
+enum statut_modele {
+  actif
+  en_maintenance
+  obsolete
+  en_test
+}
+
+model utilisateurs {
+  id_utilisateur    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  email             String           @unique @db.VarChar(255)
+  hash_mot_de_passe String           @db.VarChar(255)
+  prenom            String           @db.VarChar(100)
+  nom               String           @db.VarChar(100)
+  date_creation     DateTime         @default(now()) @db.Timestamp(6)
+  date_mise_a_jour  DateTime         @default(now()) @updatedAt @db.Timestamp(6)
+  dernier_login     DateTime?        @db.Timestamp(6)
+  actif             Boolean          @default(true)
+  photo_profil      String?          @db.VarChar(255)
+  role              role_type
+  etudiants         etudiants?       // Relation one-to-one
+  professeurs       professeurs?     // Relation one-to-one
+  administrateurs   administrateurs? // Relation one-to-one
+  fichiers          fichiers[]
+  notifications     notifications[]
+  journaux          journaux[]
+
+  @@map("utilisateurs")
+}
+
+model etudiants {
+  id_utilisateur   String          @id @db.Uuid
+  id_promotion     String?         @db.Uuid
+  numero_etudiant  String          @unique @db.VarChar(50)
+  departement      String?         @db.VarChar(100)
+  utilisateurs     utilisateurs    @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: Cascade)
+  inscriptions     inscriptions[]
+  soumissions      soumissions[]
+
+  @@map("etudiants")
+}
+
+model professeurs {
+  id_utilisateur         String                  @id @db.Uuid
+  specialisation         String?                 @db.VarChar(100)
+  departement            String?                 @db.VarChar(100)
+  titre                  String?                 @db.VarChar(50)
+  utilisateurs           utilisateurs            @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: Cascade)
+  cours                  cours[]
+  exercices              exercices[]
+  corrections_reference  corrections_reference[]
+  corrections            corrections[]
+
+  @@map("professeurs")
+}
+
+model administrateurs {
+  id_utilisateur String       @id @db.Uuid
+  niveau_admin   Int          @default(1) @db.Integer
+  utilisateurs   utilisateurs @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: Cascade)
+
+  @@map("administrateurs")
+}
+
+model cours {
+  id_cours         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nom              String         @db.VarChar(255)
+  description      String?        @db.Text
+  id_professeur    String         @db.Uuid
+  date_creation    DateTime       @default(now()) @db.Timestamp(6)
+  date_mise_a_jour DateTime       @default(now()) @updatedAt @db.Timestamp(6)
+  date_debut       DateTime       @db.Timestamp(6)
+  date_fin         DateTime       @db.Timestamp(6)
+  cle_inscription  String?        @db.VarChar(100)
+  actif            Boolean        @default(true)
+  professeurs      professeurs    @relation(fields: [id_professeur], references: [id_utilisateur])
+  inscriptions     inscriptions[]
+  exercices        exercices[]
+
+  @@map("cours")
+}
+
+model inscriptions {
+  id_inscription   String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_cours         String             @db.Uuid
+  id_etudiant      String             @db.Uuid
+  date_inscription DateTime           @default(now()) @db.Timestamp(6)
+  statut           statut_inscription @default(en_cours)
+  taux_achievement Float?             @default(0) @db.DoublePrecision
+  note_moyenne     Float?             @db.DoublePrecision
+  cours            cours              @relation(fields: [id_cours], references: [id_cours], onDelete: Cascade)
+  etudiants        etudiants          @relation(fields: [id_etudiant], references: [id_utilisateur])
+
+  @@unique([id_cours, id_etudiant])
+  @@map("inscriptions")
+}
+
+model exercices {
+  id_exercice             String                  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  titre                   String                  @db.VarChar(255)
+  description             String                  @db.Text
+  id_professeur           String                  @db.Uuid
+  id_cours                String                  @db.Uuid
+  date_creation           DateTime                @default(now()) @db.Timestamp(6)
+  date_mise_a_jour        DateTime                @default(now()) @updatedAt @db.Timestamp(6)
+  date_echeance           DateTime?               @db.Timestamp(6)
+  actif                   Boolean                 @default(true)
+  difficulte              difficulte_exercice     @default(moyen)
+  format_reponse_attendu  String                  @db.VarChar(50)
+  visible_aux_etudiants   Boolean                 @default(false)
+  professeurs             professeurs             @relation(fields: [id_professeur], references: [id_utilisateur])
+  cours                   cours                   @relation(fields: [id_cours], references: [id_cours], onDelete: Cascade)
+  soumissions             soumissions[]
+  exercice_tag            exercice_tag[]
+  exercice_fichier        exercice_fichier[]
+  corrections_reference   corrections_reference[]
+
+  @@map("exercices")
+}
+
+model tags_exercice {
+  id_tag        String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nom           String         @unique @db.VarChar(100)
+  exercice_tag  exercice_tag[]
+
+  @@map("tags_exercice")
+}
+
+model exercice_tag {
+  id_exercice   String        @db.Uuid
+  id_tag        String        @db.Uuid
+  exercices     exercices     @relation(fields: [id_exercice], references: [id_exercice], onDelete: Cascade)
+  tags_exercice tags_exercice @relation(fields: [id_tag], references: [id_tag], onDelete: Cascade)
+
+  @@id([id_exercice, id_tag])
+  @@map("exercice_tag")
+}
+
+model fichiers {
+  id_fichier                  String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nom                         String                      @db.VarChar(255)
+  type_mime                   String                      @db.VarChar(100)
+  taille                      BigInt                      @db.BigInt
+  chemin                      String                      @db.VarChar(255)
+  televersee_par              String                      @db.Uuid
+  date_telechargement         DateTime                    @default(now()) @db.Timestamp(6)
+  somme_de_controle           String?                     @db.VarChar(255)
+  est_public                  Boolean                     @default(false)
+  utilisateurs                utilisateurs                @relation(fields: [televersee_par], references: [id_utilisateur])
+  correction_reference_fichier correction_reference_fichier[]
+  exercice_fichier            exercice_fichier[]
+  soumissions                 soumissions[]
+
+  @@map("fichiers")
+}
+
+model corrections_reference {
+  id_correction                String                        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_exercice                  String                        @db.Uuid
+  id_professeur                String                        @db.Uuid
+  contenu                      String                        @db.Text
+  date_creation                DateTime                      @default(now()) @db.Timestamp(6)
+  date_mise_a_jour             DateTime                      @default(now()) @updatedAt @db.Timestamp(6)
+  exercices                    exercices                     @relation(fields: [id_exercice], references: [id_exercice], onDelete: Cascade)
+  professeurs                  professeurs                   @relation(fields: [id_professeur], references: [id_utilisateur])
+  correction_reference_fichier correction_reference_fichier[]
+  corrections                  corrections[]
+
+  @@map("corrections_reference")
+}
+
+model correction_reference_fichier {
+  id_correction         String                @db.Uuid
+  id_fichier            String                @db.Uuid
+  corrections_reference corrections_reference @relation(fields: [id_correction], references: [id_correction], onDelete: Cascade)
+  fichiers              fichiers              @relation(fields: [id_fichier], references: [id_fichier], onDelete: Cascade)
+
+  @@id([id_correction, id_fichier])
+  @@map("correction_reference_fichier")
+}
+
+model exercice_fichier {
+  id_exercice String    @db.Uuid
+  id_fichier  String    @db.Uuid
+  exercices   exercices @relation(fields: [id_exercice], references: [id_exercice], onDelete: Cascade)
+  fichiers    fichiers  @relation(fields: [id_fichier], references: [id_fichier], onDelete: Cascade)
+
+  @@id([id_exercice, id_fichier])
+  @@map("exercice_fichier")
+}
+
+model soumissions {
+  id_soumission       String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_exercice         String             @db.Uuid
+  id_etudiant         String             @db.Uuid
+  date_soumission     DateTime           @default(now()) @db.Timestamp(6)
+  contenu             String?            @db.Text
+  id_fichier          String?            @db.Uuid
+  statut              statut_soumission  @default(en_attente)
+  adresse_ip          String?            @db.VarChar(45)
+  infos_navigateur    String?            @db.Text
+  tentative_soumission Int               @default(1) @db.Integer
+  exercices           exercices          @relation(fields: [id_exercice], references: [id_exercice], onDelete: Cascade)
+  etudiants           etudiants          @relation(fields: [id_etudiant], references: [id_utilisateur])
+  fichiers            fichiers?          @relation(fields: [id_fichier], references: [id_fichier])
+  corrections         corrections[]
+
+  @@map("soumissions")
+}
+
+model modeles_ia {
+  id_modele            String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nom                  String             @db.VarChar(100)
+  version              String             @db.VarChar(50)
+  configuration        Json               @db.JsonB
+  derniere_mise_a_jour DateTime           @default(now()) @db.Timestamp(6)
+  statut               statut_modele      @default(actif)
+  donnees_entrainement Json?              @db.JsonB
+  modele_ia_sujet      modele_ia_sujet[]
+  corrections          corrections[]
+
+  @@unique([nom, version])
+  @@map("modeles_ia")
+}
+
+model modele_ia_sujet {
+  id_modele  String     @db.Uuid
+  sujet      String     @db.VarChar(100)
+  modeles_ia modeles_ia @relation(fields: [id_modele], references: [id_modele], onDelete: Cascade)
+
+  @@id([id_modele, sujet])
+  @@map("modele_ia_sujet")
+}
+
+model corrections {
+  id_correction           String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_soumission           String                 @db.Uuid
+  generee_par             source_correction      @default(ia)
+  note                    Float                  @db.DoublePrecision
+  commentaire             String                 @db.Text
+  date_creation           DateTime               @default(now()) @db.Timestamp(6)
+  date_mise_a_jour        DateTime               @default(now()) @updatedAt @db.Timestamp(6)
+  ajuste_par_professeur   Boolean                @default(false)
+  id_professeur           String?                @db.Uuid
+  details_comparaison     Json?                  @db.JsonB
+  id_correction_reference String?                @db.Uuid
+  id_modele_ia            String?                @db.Uuid
+  soumissions             soumissions            @relation(fields: [id_soumission], references: [id_soumission], onDelete: Cascade)
+  professeurs             professeurs?           @relation(fields: [id_professeur], references: [id_utilisateur])
+  corrections_reference   corrections_reference? @relation(fields: [id_correction_reference], references: [id_correction])
+  modeles_ia              modeles_ia?            @relation(fields: [id_modele_ia], references: [id_modele])
+
+  @@map("corrections")
+}
+
+model statistiques {
+  id_stat      String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type_entite  type_entite
+  id_entite    String      @db.Uuid
+  date_calcul  DateTime    @default(now()) @db.Timestamp(6)
+  metriques    Json        @db.JsonB
+  periode_temps String      @db.VarChar(50)
+
+  @@map("statistiques")
+}
+
+model notifications {
+  id_notification      String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_utilisateur       String            @db.Uuid
+  titre                String            @db.VarChar(255)
+  contenu              String            @db.Text
+  date_creation        DateTime          @default(now()) @db.Timestamp(6)
+  date_lecture         DateTime?         @db.Timestamp(6)
+  type                 type_notification
+  type_entite_associee String?           @db.VarChar(50)
+  id_entite_associee   String?           @db.Uuid
+  priorite             Int               @default(1) @db.Integer
+  utilisateurs         utilisateurs      @relation(fields: [id_utilisateur], references: [id_utilisateur], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model journaux {
+  id_journal        String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  horodatage        DateTime      @default(now()) @db.Timestamp(6)
+  id_utilisateur    String?       @db.Uuid
+  action            String        @db.VarChar(255)
+  type_entite       String?       @db.VarChar(50)
+  id_entite         String?       @db.Uuid
+  details           Json?         @db.JsonB
+  adresse_ip        String?       @db.VarChar(45)
+  agent_utilisateur String?       @db.Text
+  utilisateurs      utilisateurs? @relation(fields: [id_utilisateur], references: [id_utilisateur])
+
+  @@map("journaux")
+}

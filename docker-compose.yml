@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: plateforme-evaluation-postgres
+    environment:
+      POSTGRES_USER: plateforme_user  # Nom d'utilisateur plus spécifique
+      POSTGRES_PASSWORD: plateforme_password # Mot de passe plus sécurisé
+      POSTGRES_DB: plateforme_evaluation_db # Nom de la base de données plus explicite
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
