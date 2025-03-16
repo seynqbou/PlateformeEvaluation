@@ -61,10 +61,47 @@ enum statut_modele {
   en_test
 }
 
+// Modèles NextAuth.js
+model Account {
+  id                   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId               String  @db.Uuid
+  type                 String
+  provider             String
+  providerAccountId    String
+  refresh_token        String? @db.Text
+  access_token         String? @db.Text
+  expires_at           Int?
+  token_type           String?
+  scope                String?
+  id_token             String? @db.Text
+  session_state        String?
+  utilisateurs         utilisateurs @relation(fields: [userId], references: [id_utilisateur], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sessionToken String   @unique
+  userId       String   @db.Uuid
+  expires      DateTime @db.Timestamp(6)
+  utilisateurs utilisateurs @relation(fields: [userId], references: [id_utilisateur], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime @db.Timestamp(6)
+
+  @@unique([identifier, token])
+}
+
+// Modèle utilisateur existant avec modifications pour NextAuth
 model utilisateurs {
   id_utilisateur    String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   email             String           @unique @db.VarChar(255)
-  hash_mot_de_passe String           @db.VarChar(255)
+  emailVerified     DateTime?        @db.Timestamp(6)
+  hash_mot_de_passe String?          @db.VarChar(255)
   prenom            String           @db.VarChar(100)
   nom               String           @db.VarChar(100)
   date_creation     DateTime         @default(now()) @db.Timestamp(6)
@@ -79,6 +116,8 @@ model utilisateurs {
   fichiers          fichiers[]
   notifications     notifications[]
   journaux          journaux[]
+  accounts          Account[]
+  sessions          Session[]
 
   @@map("utilisateurs")
 }
