@@ -62,6 +62,11 @@ enum statut_modele {
   en_test
 }
 
+enum type_soumission {
+  texte
+  fichier
+}
+
 // Modèles NextAuth.js
 model Account {
   id                   String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -295,6 +300,7 @@ model soumissions {
   adresse_ip          String?            @db.VarChar(45)
   infos_navigateur    String?            @db.Text
   tentative_soumission Int               @default(1) @db.Integer
+  type                type_soumission   @default(fichier) // Add this line
   exercices           exercices          @relation(fields: [id_exercice], references: [id_exercice], onDelete: Cascade)
   etudiants           etudiants          @relation(fields: [id_etudiant], references: [id_utilisateur])
   fichiers            fichiers?          @relation(fields: [id_fichier], references: [id_fichier])
