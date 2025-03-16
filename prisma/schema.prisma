@@ -32,6 +32,7 @@ enum statut_soumission {
   corrige
   en_revision
   rejete
+  erreur_correction
 }
 
 enum type_entite {
