@@ -2,6 +2,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSession } from "next-auth/react"; // Import useSession
 import {
   Table,
   TableBody,
@@ -68,6 +69,7 @@ interface Submission {
 
 
 export default function EtudiantDashboard() {
+  const { data: session, status } = useSession(); // Get session data
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -85,55 +87,54 @@ export default function EtudiantDashboard() {
 
   // --- Fetch Exercises (Filtering on client for now) ---
   const fetchExercises = useCallback(async () => {
+   if (status === "loading") return; // Prevent early fetches
+
     setLoading(true);
     setError(null);
 
-    try {
-      const response = await fetch("/api/exercices");
-      if (!response.ok) {
-        throw new Error("Failed to fetch exercises");
-      }
-      const data = await response.json();
+    if (status === "authenticated" && session?.user) {
+      try {
+          const response = await fetch("/api/exercices");
+          if (!response.ok) {
+            throw new Error("Failed to fetch exercises");
+          }
+          const data = await response.json();
 
-      // Get user ID *synchronously* from localStorage (if available)
-      let userId = null;
-      if (typeof window !== 'undefined') {
-        const session = localStorage.getItem("session");
-        if (session) {
-          userId = JSON.parse(session)?.user?.id;
-        }
-      }
-      // Filter exercises based on visibility
-      const filteredExercises = data.filter((ex: any) => ex.visible_aux_etudiants === true);
+          // Get user ID from the session
+          const userId = session.user.id;
 
-      // Fetch submissions for the student
-      if (userId) {
-          const submissionsResponse = await fetch(`/api/etudiants/${userId}/soumissions`);
-        if (submissionsResponse.ok) {
-          const submissionsData = await submissionsResponse.json();
+          // Filter exercises based on visibility
+          const filteredExercises = data.filter((ex: any) => ex.visible_aux_etudiants === true);
 
-          // Merge exercises with submission status
-          const exercisesWithStatus = filteredExercises.map((exercise: Exercise) => {
-            const userSubmission = submissionsData.find((sub: any) => sub.id_exercice === exercise.id_exercice);
-            return {
-              ...exercise,
-              submissionStatus: userSubmission ? userSubmission.statut : "Non soumis",
-              submissionId: userSubmission ? userSubmission.id_soumission : null,
-            };
-          });
-          setExercises(exercisesWithStatus);
+        // Fetch submissions for the student using session user ID
+        if (userId) {
+            const submissionsResponse = await fetch(`/api/etudiants/${userId}/soumissions`);
+          if (submissionsResponse.ok) {
+            const submissionsData = await submissionsResponse.json();
+
+            // Merge exercises with submission status
+            const exercisesWithStatus = filteredExercises.map((exercise: Exercise) => {
+              const userSubmission = submissionsData.find((sub: any) => sub.id_exercice === exercise.id_exercice);
+              return {
+                ...exercise,
+                submissionStatus: userSubmission ? userSubmission.statut : "Non soumis",
+                submissionId: userSubmission ? userSubmission.id_soumission : null,
+              };
+            });
+            setExercises(exercisesWithStatus);
+          } else {
+            setExercises(filteredExercises); // Still set exercises, even if submissions fetch fails
+          }
         } else {
-          setExercises(filteredExercises); // Still set exercises, even if submissions fetch fails
+          setExercises(filteredExercises); // No user ID, show visible exercises
         }
-      } else {
-        setExercises(filteredExercises); // No user ID, show visible exercises
+      } catch (err: any) {
+        setError(err.message || "An error occurred");
+      } finally {
+        setLoading(false);
       }
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
-    } finally {
-      setLoading(false);
     }
-  }, []);
+  }, [status, session]);
 
   useEffect(() => {
     fetchExercises();

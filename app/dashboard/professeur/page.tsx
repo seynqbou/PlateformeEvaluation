@@ -49,6 +49,7 @@ import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import SubmissionReview from "@/components/SubmissionReview"; // Import the component
 import ExerciseFileUpload from "@/components/ExerciseFileUpload";
+import { useSession } from "next-auth/react";
 
 
 // --- Form Schema ---
@@ -97,35 +98,33 @@ export default function ProfessorDashboard() {
   const [reviewSubmission, setReviewSubmission] = useState<any | null>(null); // State for the submission being reviewed
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [uploadSuccess, setUploadSuccess] = useState(false); // Add this state
+  const { data: session, status } = useSession(); // Get session data
 
     // --- Fetch Exercises ---
   const fetchExercises = useCallback(async () => {
+    if (status === "loading") return;
     setLoading(true);
     setError(null);
-    try {
-      const response = await fetch("/api/exercices");
-      if (!response.ok) {
-        throw new Error("Failed to fetch exercises");
-      }
-      const data = await response.json();
-      let userId = null;
-      if (typeof window !== "undefined") {
-        const session = localStorage.getItem("session");
-        if (session) {
-          userId = JSON.parse(session)?.user?.id;
+    if(status === "authenticated" && session?.user){
+        try {
+        const response = await fetch("/api/exercices");
+        if (!response.ok) {
+          throw new Error("Failed to fetch exercises");
         }
-      }
-      const filteredExercises = userId
-        ? data.filter((ex: any) => ex.id_professeur === userId)
-        : [];
+        const data = await response.json();
+        const userId = session.user.id;
+        const filteredExercises = userId
+          ? data.filter((ex: any) => ex.id_professeur === userId)
+          : [];
 
-      setExercises(filteredExercises);
-    } catch (err: any) {
-      setError(err.message || "An error occurred");
-    } finally {
-      setLoading(false);
+        setExercises(filteredExercises);
+      } catch (err: any) {
+        setError(err.message || "An error occurred");
+      } finally {
+        setLoading(false);
+      }
     }
-  }, []);
+  }, [status, session]);
 
   useEffect(() => {
     fetchExercises();

@@ -1,4 +1,4 @@
-import NextAuth, { type AuthOptions, type DefaultSession } from "next-auth";
+import NextAuth, { type AuthOptions } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import prisma from "@/lib/prisma";
 import CredentialsProvider from "next-auth/providers/credentials";
@@ -8,12 +8,15 @@ import bcrypt from "bcryptjs";
 import { role_type } from "@prisma/client";
 import type { Adapter } from "next-auth/adapters";
 
+// Types personnalisés pour NextAuth
 declare module "next-auth" {
-  interface Session extends DefaultSession {
+  interface Session {
     user: {
       id: string;
       role: role_type;
-    } & DefaultSession["user"];
+      email: string;
+      name?: string | null;
+    } & import("next-auth").DefaultSession["user"];
   }
 
   interface User {
@@ -33,9 +36,11 @@ declare module "next-auth/jwt" {
   }
 }
 
+// Configuration des options d'authentification
 export const authOptions: AuthOptions = {
-  adapter: PrismaAdapter(prisma) as Adapter,  // Cast to Adapter
+  adapter: PrismaAdapter(prisma) as Adapter, // Adaptateur Prisma pour gérer les utilisateurs dans la base de données
   providers: [
+    // Fournisseur d'identifiants (email/mot de passe)
     CredentialsProvider({
       name: "Identifiants",
       credentials: {
@@ -44,7 +49,7 @@ export const authOptions: AuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          return null;
+          throw new Error("Email et mot de passe sont requis");
         }
 
         const user = await prisma.utilisateurs.findUnique({
@@ -59,57 +64,60 @@ export const authOptions: AuthOptions = {
           },
         });
 
-        if (!user?.hash_mot_de_passe) {
-          return null;
+        if (!user || !user.hash_mot_de_passe) {
+          throw new Error("Utilisateur non trouvé ou mot de passe non défini");
         }
 
-        const isValid = await bcrypt.compare(
-          credentials.password,
-          user.hash_mot_de_passe
-        );
+        const isValid = await bcrypt.compare(credentials.password, user.hash_mot_de_passe);
+        if (!isValid) {
+          throw new Error("Mot de passe incorrect");
+        }
 
-        return isValid
-          ? {
-              id: user.id_utilisateur,
-              email: user.email,
-              name: `${user.prenom} ${user.nom}`,
-              role: user.role,
-            }
-          : null;
+        return {
+          id: user.id_utilisateur,
+          email: user.email,
+          name: `${user.prenom || ""} ${user.nom || ""}`.trim() || null,
+          role: user.role,
+        };
       },
     }),
+    // Fournisseur Google
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
       profile(profile) {
         return {
           id: profile.sub,
           email: profile.email,
-          name: profile.name || profile.login,
-          role: "etudiant" as role_type, // Force role to "etudiant"
+          name: profile.name,
+          role: "etudiant" as role_type, // Par défaut, nouveaux utilisateurs Google sont étudiants
           image: profile.picture,
         };
       },
     }),
+    // Fournisseur GitHub
     GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      clientId: process.env.GITHUB_CLIENT_ID ?? "",
+      clientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
       profile(profile) {
         return {
           id: profile.id.toString(),
           email: profile.email || `${profile.login}@github.com`,
           name: profile.name || profile.login,
-          role: "etudiant" as role_type, // Force role to "etudiant"
+          role: "etudiant" as role_type, // Par défaut, nouveaux utilisateurs GitHub sont étudiants
           image: profile.avatar_url,
         };
       },
     }),
   ],
   callbacks: {
-    async signIn({ user }) {
-      // No need to check for existing user here; PrismaAdapter handles it
-      return true; 
+    // Callback pour valider la connexion
+    async signIn({ user, account, profile }) {
+      // Logique supplémentaire si nécessaire (ex. : vérification de l'email)
+      console.log("Utilisateur connecté :", { id: user.id, email: user.email, role: user.role });
+      return true; // Autoriser la connexion
     },
+    // Callback pour personnaliser le token JWT
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
@@ -119,31 +127,42 @@ export const authOptions: AuthOptions = {
       }
       return token;
     },
+    // Callback pour personnaliser la session
     async session({ session, token }) {
-      if (token?.id && token?.role) {
+      if (token.id && token.role) {
         session.user = {
-          ...session.user,
           id: token.id,
           role: token.role,
+          email: token.email ?? "", // Toujours défini grâce au provider ou authorize
           name: token.name,
-          email: token.email!,  // Safe to use "!" because we set email in jwt
         };
       }
       return session;
     },
+    // Callback pour gérer la redirection après connexion
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+      if (new URL(url).origin === baseUrl) {
+        return url;
+      }
+      return `${baseUrl}/dashboard`; // Redirection par défaut vers le dashboard
+    },
   },
   pages: {
-    signIn: "/auth/connexion",
-    error: "/auth/erreur",
-    // newUser: "/auth/inscription"  <-- Remove this line.  We handle new user redirection in the onClick of the Google/GitHub buttons
+    signIn: "/auth/connexion", // Page de connexion personnalisée
+    error: "/auth/erreur",     // Page d'erreur personnalisée
   },
   session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    strategy: "jwt",           // Utiliser JWT pour la gestion de session
+    maxAge: 30 * 24 * 60 * 60, // Durée de vie de la session : 30 jours
   },
-  secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === "development",
+  secret: process.env.NEXTAUTH_SECRET ?? "default-secret-for-dev", // Secret obligatoire pour signer les JWT
+  debug: process.env.NODE_ENV === "development", // Activer le débogage en développement
 };
 
+// Initialisation de NextAuth avec les options
 const handler = NextAuth(authOptions);
+
 export { handler as GET, handler as POST };
