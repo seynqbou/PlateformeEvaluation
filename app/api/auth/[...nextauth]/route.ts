@@ -1,5 +1,5 @@
 import NextAuth, { type AuthOptions, type DefaultSession } from "next-auth";
-import { PrismaAdapter } from "@next-auth/prisma-adapter";
+import { PrismaAdapter } from "@auth/prisma-adapter";
 import prisma from "@/lib/prisma";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
@@ -15,7 +15,7 @@ declare module "next-auth" {
       role: role_type;
     } & DefaultSession["user"];
   }
-   
+
   interface User {
     id: string;
     role: role_type;
@@ -34,16 +34,18 @@ declare module "next-auth/jwt" {
 }
 
 export const authOptions: AuthOptions = {
-  adapter: PrismaAdapter(prisma) as Adapter,
+  adapter: PrismaAdapter(prisma) as Adapter,  // Cast to Adapter
   providers: [
     CredentialsProvider({
       name: "Identifiants",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Mot de passe", type: "password" }
+        password: { label: "Mot de passe", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
+        if (!credentials?.email || !credentials?.password) {
+          return null;
+        }
 
         const user = await prisma.utilisateurs.findUnique({
           where: { email: credentials.email },
@@ -53,24 +55,28 @@ export const authOptions: AuthOptions = {
             prenom: true,
             nom: true,
             role: true,
-            hash_mot_de_passe: true
-          }
+            hash_mot_de_passe: true,
+          },
         });
 
-        if (!user?.hash_mot_de_passe) return null;
+        if (!user?.hash_mot_de_passe) {
+          return null;
+        }
 
         const isValid = await bcrypt.compare(
           credentials.password,
           user.hash_mot_de_passe
         );
 
-        return isValid ? {
-          id: user.id_utilisateur,
-          email: user.email,
-          name: `${user.prenom} ${user.nom}`,
-          role: user.role
-        } : null;
-      }
+        return isValid
+          ? {
+              id: user.id_utilisateur,
+              email: user.email,
+              name: `${user.prenom} ${user.nom}`,
+              role: user.role,
+            }
+          : null;
+      },
     }),
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -80,10 +86,10 @@ export const authOptions: AuthOptions = {
           id: profile.sub,
           email: profile.email,
           name: profile.name || profile.login,
-          role: "etudiant",
-          image: profile.picture
+          role: "etudiant" as role_type, // Force role to "etudiant"
+          image: profile.picture,
         };
-      }
+      },
     }),
     GitHubProvider({
       clientId: process.env.GITHUB_CLIENT_ID!,
@@ -93,21 +99,16 @@ export const authOptions: AuthOptions = {
           id: profile.id.toString(),
           email: profile.email || `${profile.login}@github.com`,
           name: profile.name || profile.login,
-          role: "etudiant",
-          image: profile.avatar_url
+          role: "etudiant" as role_type, // Force role to "etudiant"
+          image: profile.avatar_url,
         };
-      }
-    })
+      },
+    }),
   ],
   callbacks: {
     async signIn({ user }) {
-      if (user.email) {
-        const existingUser = await prisma.utilisateurs.findUnique({
-          where: { email: user.email }
-        });
-        if (existingUser) user.role = existingUser.role;
-      }
-      return true;
+      // No need to check for existing user here; PrismaAdapter handles it
+      return true; 
     },
     async jwt({ token, user }) {
       if (user) {
@@ -125,23 +126,23 @@ export const authOptions: AuthOptions = {
           id: token.id,
           role: token.role,
           name: token.name,
-          email: token.email!
+          email: token.email!,  // Safe to use "!" because we set email in jwt
         };
       }
       return session;
-    }
+    },
   },
   pages: {
     signIn: "/auth/connexion",
     error: "/auth/erreur",
-    newUser: "/auth/inscription"
+    // newUser: "/auth/inscription"  <-- Remove this line.  We handle new user redirection in the onClick of the Google/GitHub buttons
   },
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60 // 30 jours
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
-  debug: process.env.NODE_ENV === "development"
+  debug: process.env.NODE_ENV === "development",
 };
 
 const handler = NextAuth(authOptions);
