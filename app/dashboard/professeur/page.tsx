@@ -20,12 +20,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -36,21 +34,22 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { difficulte_exercice } from "@prisma/client";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
-import SubmissionReview from "@/components/SubmissionReview"; // Import the component
+import SubmissionReview from "@/components/SubmissionReview";
 import ExerciseFileUpload from "@/components/ExerciseFileUpload";
 import { useSession } from "next-auth/react";
-
 
 // --- Form Schema ---
 const formSchema = z.object({
@@ -77,9 +76,8 @@ interface Exercise {
   format_reponse_attendu: string;
   visible_aux_etudiants: boolean;
   correction_reference?: string;
-  // Add other fields as needed
+  id_professeur?: string;
 }
-
 
 export default function ProfessorDashboard() {
   const [exercises, setExercises] = useState<Exercise[]>([]);
@@ -88,38 +86,33 @@ export default function ProfessorDashboard() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [selectedExercise, setSelectedExercise] = useState<Exercise | null>(null);
-  const [submissions, setSubmissions] = useState<any[]>([]); // Replace 'any' with a proper type
+  const [submissions, setSubmissions] = useState<any[]>([]); // À typer correctement plus tard
   const [searchTerm, setSearchTerm] = useState("");
-  const router = useRouter();
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const exercisesPerPage = 10;
-  // Submission Review
-  const [reviewSubmission, setReviewSubmission] = useState<any | null>(null); // State for the submission being reviewed
+  const [reviewSubmission, setReviewSubmission] = useState<any | null>(null);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-  const [uploadSuccess, setUploadSuccess] = useState(false); // Add this state
-  const { data: session, status } = useSession(); // Get session data
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const exercisesPerPage = 10;
 
-    // --- Fetch Exercises ---
+  // --- Fetch Exercises ---
   const fetchExercises = useCallback(async () => {
     if (status === "loading") return;
     setLoading(true);
     setError(null);
-    if(status === "authenticated" && session?.user){
-        try {
+    if (status === "authenticated" && session?.user) {
+      try {
         const response = await fetch("/api/exercices");
-        if (!response.ok) {
-          throw new Error("Failed to fetch exercises");
-        }
+        if (!response.ok) throw new Error("Échec de la récupération des exercices");
         const data = await response.json();
         const userId = session.user.id;
         const filteredExercises = userId
-          ? data.filter((ex: any) => ex.id_professeur === userId)
+          ? data.filter((ex: Exercise) => ex.id_professeur === userId)
           : [];
-
         setExercises(filteredExercises);
       } catch (err: any) {
-        setError(err.message || "An error occurred");
+        setError(err.message || "Une erreur est survenue");
       } finally {
         setLoading(false);
       }
@@ -130,30 +123,26 @@ export default function ProfessorDashboard() {
     fetchExercises();
   }, [fetchExercises]);
 
-    // --- Fetch Exercise Details and Submissions---
+  // --- Fetch Exercise Details and Submissions ---
   const fetchExerciseDetails = async (exerciseId: string) => {
     try {
       const exerciseResponse = await fetch(`/api/exercices/${exerciseId}`);
-      if (!exerciseResponse.ok) {
-        throw new Error("Failed to fetch exercise details");
-      }
+      if (!exerciseResponse.ok) throw new Error("Échec de la récupération des détails");
       const exerciseData = await exerciseResponse.json();
       setSelectedExercise(exerciseData);
 
       const submissionsResponse = await fetch(`/api/exercices/${exerciseId}/soumissions`);
-      if (!submissionsResponse.ok) {
-        throw new Error("Failed to fetch submissions");
-      }
+      if (!submissionsResponse.ok) throw new Error("Échec de la récupération des soumissions");
       const submissionsData = await submissionsResponse.json();
       setSubmissions(submissionsData);
     } catch (error) {
-      console.error("Error fetching exercise details:", error);
-      // Handle error appropriately (e.g., show error message to user)
+      console.error("Erreur lors de la récupération des détails:", error);
+      setError("Impossible de charger les détails de l'exercice");
     }
   };
 
   // --- Form Instance ---
-    const form = useForm<ExerciseFormValues>({
+  const form = useForm<ExerciseFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       titre: "",
@@ -164,76 +153,59 @@ export default function ProfessorDashboard() {
       visible_aux_etudiants: false,
       correction_reference: "",
     },
-    // Add this to reset form after upload
-    values: {
-      titre: editingExercise?.titre || "",
-      description: editingExercise?.description || "",
-      date_echeance: editingExercise?.date_echeance
-        ? new Date(editingExercise.date_echeance)
-        : undefined,
-      difficulte: editingExercise?.difficulte || "moyen",
-      format_reponse_attendu: editingExercise?.format_reponse_attendu || "",
-      visible_aux_etudiants: editingExercise?.visible_aux_etudiants || false,
-      correction_reference: editingExercise?.correction_reference || "",
-    },
   });
 
+    useEffect(() => {
+    if (editingExercise) {
+      form.reset({
+        titre: editingExercise.titre,
+        description: editingExercise.description,
+        date_echeance: editingExercise.date_echeance
+          ? new Date(editingExercise.date_echeance)
+          : undefined,
+        difficulte: editingExercise.difficulte,
+        format_reponse_attendu: editingExercise.format_reponse_attendu,
+        visible_aux_etudiants: editingExercise.visible_aux_etudiants,
+        correction_reference: editingExercise.correction_reference || "",
+      });
+    } else {
+        form.reset();
+    }
+  }, [editingExercise, form]);
 
   // --- Handle Form Submission ---
-    const onSubmit = async (data: ExerciseFormValues) => {
-      setIsDialogOpen(false); // Close *before* the async operation
-       try {
-        const url = editingExercise
-          ? `/api/exercices/${editingExercise.id_exercice}`
-          : "/api/exercices";
-        const method = editingExercise ? "PUT" : "POST";
-        const response = await fetch(url, {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        });
+  const onSubmit = async (data: ExerciseFormValues) => {
+    try {
+      const url = editingExercise
+        ? `/api/exercices/${editingExercise.id_exercice}`
+        : "/api/exercices";
+      const method = editingExercise ? "PUT" : "POST";
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || "An error occurred");
-        }
-        // Refetch exercise, Use the  fetchExercises function
-        await fetchExercises();
-
-        // Reset form and close dialog
-        form.reset();
-        setIsDialogOpen(false);
-        setEditingExercise(null);
-
-
-      } catch (error: any) {
-         setError(error.message);
-
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Une erreur est survenue");
       }
-    };
 
+      await fetchExercises();
+      setIsDialogOpen(false);
+      setEditingExercise(null);
+      setUploadSuccess(false); // Réinitialise l'état de succès de l'upload
+    } catch (error: any) {
+      setError(error.message);
+    }
+  };
 
   // --- Edit Exercise ---
   const handleEdit = (exercise: Exercise) => {
     setEditingExercise(exercise);
-    setUploadSuccess(false); // Reset upload success on edit
-
-    // Convert date_echeance to Date object if it exists
-    const dateEcheance = exercise.date_echeance
-      ? new Date(exercise.date_echeance)
-      : undefined;
-
-    form.setValue("titre", exercise.titre);
-    form.setValue("description", exercise.description);
-    form.setValue("date_echeance", dateEcheance);
-    form.setValue("difficulte", exercise.difficulte || "moyen");
-    form.setValue("format_reponse_attendu", exercise.format_reponse_attendu);
-    form.setValue("visible_aux_etudiants", exercise.visible_aux_etudiants);
-    form.setValue("correction_reference", exercise.correction_reference || "");
-
-    setIsDialogOpen(true);
+    setUploadSuccess(false); // Réinitialise l'indicateur de succès lors de l'édition
+    setIsDialogOpen(true); // Ouvre le dialogue *après* avoir mis à jour l'état
   };
-
 
   // --- Delete Exercise ---
   const handleDelete = async (exerciseId: string) => {
@@ -242,49 +214,43 @@ export default function ProfessorDashboard() {
         const response = await fetch(`/api/exercices/${exerciseId}`, {
           method: "DELETE",
         });
-        if (!response.ok) {
-          throw new Error("Failed to delete exercise");
-        }
-
-         // Refetch exercises to update the list
-        await fetchExercises(); // Use await here
-
+        if (!response.ok) throw new Error("Échec de la suppression");
+        await fetchExercises();
       } catch (error: any) {
-         setError(error.message);
+        setError(error.message);
       }
     }
   };
 
+  // --- View Submissions ---
   const handleViewSubmissions = (exerciseId: string) => {
-      fetchExerciseDetails(exerciseId); // Fetch and display details
+    fetchExerciseDetails(exerciseId);
   };
+
+  // --- Review Submission ---
   const handleReviewSubmission = (submission: any) => {
     setReviewSubmission(submission);
     setReviewDialogOpen(true);
   };
 
+  // --- Handle File Upload Success ---
   const onUploadSuccess = useCallback(() => {
-    setUploadSuccess(true); // Set upload success state
-    // Optionally, refetch exercise details to show the uploaded file
-    if (editingExercise) {
-      fetchExerciseDetails(editingExercise.id_exercice);
-    }
+    setUploadSuccess(true);
+    if (editingExercise) fetchExerciseDetails(editingExercise.id_exercice);
   }, [editingExercise]);
 
-    // --- Pagination Logic ---
+  // --- Pagination Logic ---
   const indexOfLastExercise = currentPage * exercisesPerPage;
   const indexOfFirstExercise = indexOfLastExercise - exercisesPerPage;
   const currentExercises = exercises.slice(indexOfFirstExercise, indexOfLastExercise);
-  // Put paginate inside the component.
   const paginate = (pageNumber: number) => setCurrentPage(pageNumber);
 
-    // --- Filtered Exercises ---
-    const filteredExercises = currentExercises.filter((exercise) =>
+  // --- Filtered Exercises ---
+  const filteredExercises = currentExercises.filter((exercise) =>
     exercise.titre.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-
- return (
+  return (
     <div className="p-8">
       <h1 className="text-2xl font-bold mb-6">Tableau de Bord Professeur</h1>
 
@@ -295,7 +261,7 @@ export default function ProfessorDashboard() {
             <CardTitle>Exercices Créés</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>{exercises.length}</p> {/* Total number of exercises */}
+            <p>{exercises.length}</p>
           </CardContent>
         </Card>
         <Card>
@@ -303,7 +269,7 @@ export default function ProfessorDashboard() {
             <CardTitle>Soumissions Reçues</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>0</p> {/*  Replace with actual submission count */}
+            <p>0</p> {/* À remplacer par un calcul réel */}
           </CardContent>
         </Card>
         <Card>
@@ -311,13 +277,13 @@ export default function ProfessorDashboard() {
             <CardTitle>Taux de Réussite Moyen</CardTitle>
           </CardHeader>
           <CardContent>
-            <p>75%</p> {/* Replace with calculated average success rate */}
+            <p>75%</p> {/* À remplacer par un calcul réel */}
           </CardContent>
         </Card>
       </div>
 
-       {/* --- Search Input --- */}
-       <Input
+      {/* --- Search Input --- */}
+      <Input
         type="text"
         placeholder="Rechercher par titre..."
         value={searchTerm}
@@ -326,11 +292,18 @@ export default function ProfessorDashboard() {
       />
 
       {/* --- Create Exercise Button --- */}
-      <Button onClick={() => {setIsDialogOpen(true); setEditingExercise(null); form.reset();}} className="mb-4">
+      <Button
+        onClick={() => {
+          setIsDialogOpen(true);
+          setEditingExercise(null); // Important: Réinitialise editingExercise
+          form.reset(); // Réinitialise le formulaire
+        }}
+        className="mb-4"
+      >
         Créer un Exercice
       </Button>
 
-        {/* --- Exercise List Table --- */}
+      {/* --- Exercise List Table --- */}
       <Table>
         <TableHeader>
           <TableRow>
@@ -342,7 +315,7 @@ export default function ProfessorDashboard() {
           </TableRow>
         </TableHeader>
         <TableBody>
-           {loading ? (
+          {loading ? (
             <TableRow>
               <TableCell colSpan={5} className="text-center">
                 Chargement...
@@ -355,18 +328,16 @@ export default function ProfessorDashboard() {
               </TableCell>
             </TableRow>
           ) : filteredExercises.length === 0 ? (
-             <TableRow>
+            <TableRow>
               <TableCell colSpan={5} className="text-center">
                 Aucun exercice trouvé.
               </TableCell>
             </TableRow>
-          ): (
+          ) : (
             filteredExercises.map((exercise) => (
               <TableRow key={exercise.id_exercice}>
                 <TableCell>{exercise.titre}</TableCell>
-                <TableCell>
-                  {new Date(exercise.date_creation).toLocaleDateString()}
-                </TableCell>
+                <TableCell>{new Date(exercise.date_creation).toLocaleDateString()}</TableCell>
                 <TableCell>
                   {exercise.date_echeance
                     ? new Date(exercise.date_echeance).toLocaleDateString()
@@ -390,7 +361,7 @@ export default function ProfessorDashboard() {
                   >
                     Supprimer
                   </Button>
-                   <Button
+                  <Button
                     variant="outline"
                     size="sm"
                     onClick={() => handleViewSubmissions(exercise.id_exercice)}
@@ -405,31 +376,33 @@ export default function ProfessorDashboard() {
       </Table>
 
       {/* --- Pagination --- */}
-        <div className="flex justify-center mt-4">
-          {exercises.length > exercisesPerPage && (
-            <>
-              <Button
-                onClick={() => paginate(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="mr-2"
-              >
-                Précédent
-              </Button>
-              <Button
-                onClick={() => paginate(currentPage + 1)}
-                disabled={indexOfLastExercise >= exercises.length}
-              >
-                Suivant
-              </Button>
-            </>
-          )}
-        </div>
+      <div className="flex justify-center mt-4">
+        {exercises.length > exercisesPerPage && (
+          <>
+            <Button
+              onClick={() => paginate(currentPage - 1)}
+              disabled={currentPage === 1}
+              className="mr-2"
+            >
+              Précédent
+            </Button>
+            <Button
+              onClick={() => paginate(currentPage + 1)}
+              disabled={indexOfLastExercise >= exercises.length}
+            >
+              Suivant
+            </Button>
+          </>
+        )}
+      </div>
 
       {/* --- Create/Edit Exercise Dialog --- */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingExercise ? "Éditer l'Exercice" : "Créer un Exercice"}</DialogTitle>
+            <DialogTitle>
+              {editingExercise ? "Éditer l'Exercice" : "Créer un Exercice"}
+            </DialogTitle>
             <DialogDescription>
               {editingExercise
                 ? "Modifiez les détails de l'exercice ici."
@@ -451,6 +424,7 @@ export default function ProfessorDashboard() {
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="description"
@@ -458,16 +432,13 @@ export default function ProfessorDashboard() {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Textarea
-                        placeholder="Description de l'exercice"
-                        {...field}
-                      />
+                      <Textarea placeholder="Description de l'exercice" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              {/* --- Date Picker --- */}
+
               <FormField
                 control={form.control}
                 name="date_echeance"
@@ -478,7 +449,7 @@ export default function ProfessorDashboard() {
                       <PopoverTrigger asChild>
                         <FormControl>
                           <Button
-                            variant={"outline"}
+                            variant="outline"
                             className={cn(
                               "w-[240px] pl-3 text-left font-normal",
                               !field.value && "text-muted-foreground"
@@ -497,9 +468,9 @@ export default function ProfessorDashboard() {
                         <Calendar
                           mode="single"
                           selected={field.value}
-                          onSelect={field.onChange}
+                          onSelect={(date) => field.onChange(date)}
                           disabled={(date) =>
-                            date < new Date(new Date().setHours(0,0,0,0))
+                            date < new Date(new Date().setHours(0, 0, 0, 0))
                           }
                           initialFocus
                         />
@@ -509,16 +480,14 @@ export default function ProfessorDashboard() {
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="difficulte"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Difficulté</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Choisir une difficulté" />
@@ -571,6 +540,7 @@ export default function ProfessorDashboard() {
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="correction_reference"
@@ -587,17 +557,20 @@ export default function ProfessorDashboard() {
                   </FormItem>
                 )}
               />
-                {/* --- File Upload --- */}
+
+                {/* Intégration de ExerciseFileUpload *seulement* en mode édition */}
               {editingExercise && (
                 <ExerciseFileUpload
                   id_exercice={editingExercise.id_exercice}
                   onUploadSuccess={onUploadSuccess}
                 />
               )}
+
               {uploadSuccess && (
                 <p className="text-green-500">Fichier téléversé avec succès!</p>
               )}
-                <DialogFooter>
+
+              <DialogFooter>
                 <Button type="submit">
                   {editingExercise ? "Enregistrer les modifications" : "Créer"}
                 </Button>
@@ -607,18 +580,33 @@ export default function ProfessorDashboard() {
         </DialogContent>
       </Dialog>
 
-       {/* --- Exercise Details and Submissions Dialog --- */}
-       {selectedExercise && (
+      {/* --- Exercise Details and Submissions Dialog --- */}
+      {selectedExercise && (
         <Dialog open={!!selectedExercise} onOpenChange={() => setSelectedExercise(null)}>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>{selectedExercise.titre}</DialogTitle>
             </DialogHeader>
-                <p><strong>Description:</strong> {selectedExercise.description}</p>
-                <p><strong>Date d'échéance:</strong> {selectedExercise.date_echeance ? new Date(selectedExercise.date_echeance).toLocaleDateString(): "Non définie"}</p>
-                <p><strong>Difficulté:</strong> {selectedExercise.difficulte}</p>
-                <p><strong>Format de réponse attendu:</strong> {selectedExercise.format_reponse_attendu}</p>
-                <p><strong>Correction de Référence:</strong>{selectedExercise.correction_reference || "Non fournie"}</p>
+            <p>
+              <strong>Description:</strong> {selectedExercise.description}
+            </p>
+            <p>
+              <strong>Date d'échéance:</strong>{" "}
+              {selectedExercise.date_echeance
+                ? new Date(selectedExercise.date_echeance).toLocaleDateString()
+                : "Non définie"}
+            </p>
+            <p>
+              <strong>Difficulté:</strong> {selectedExercise.difficulte}
+            </p>
+            <p>
+              <strong>Format de réponse attendu:</strong>{" "}
+              {selectedExercise.format_reponse_attendu}
+            </p>
+            <p>
+              <strong>Correction de Référence:</strong>{" "}
+              {selectedExercise.correction_reference || "Non fournie"}
+            </p>
 
             <h2 className="text-lg font-semibold mt-4">Soumissions</h2>
             <Table>
@@ -632,43 +620,42 @@ export default function ProfessorDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                 {submissions.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center">
-                        Aucune soumission trouvée.
+                {submissions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center">
+                      Aucune soumission trouvée.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  submissions.map((submission) => (
+                    <TableRow key={submission.id_soumission}>
+                      <TableCell>
+                        {submission.etudiants?.prenom} {submission.etudiants?.nom}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(submission.date_soumission).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>{submission.statut}</TableCell>
+                      <TableCell>{submission.corrections?.[0]?.note ?? "-"}</TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleReviewSubmission(submission)}
+                        >
+                          Voir/Ajuster
+                        </Button>
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    submissions.map((submission) => (
-                      <TableRow key={submission.id_soumission}>
-                        <TableCell>
-                          {submission.etudiants?.prenom} {submission.etudiants?.nom}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(submission.date_soumission).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>{submission.statut}</TableCell>
-                        <TableCell>
-                          {submission.corrections?.[0]?.note ?? "-"}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleReviewSubmission(submission)}
-                          >
-                            Voir/Ajuster
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
+                  ))
+                )}
               </TableBody>
             </Table>
           </DialogContent>
         </Dialog>
-       )}
-        {/* --- Submission Review Dialog --- */}
+      )}
+
+      {/* --- Submission Review Dialog --- */}
       {reviewDialogOpen && reviewSubmission && (
         <SubmissionReview
           submission={reviewSubmission}
