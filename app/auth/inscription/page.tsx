@@ -72,6 +72,7 @@ export default function InscriptionPage() {
         if (response.ok) {
           // Redirection vers la page de connexion après une inscription réussie
           router.push("/auth/connexion");
+          router.refresh() // Important : rafraichir pour mettre à jour la session
         } else {
           // Gérer les erreurs de l'API
           const errorData = await response.json();

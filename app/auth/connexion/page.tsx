@@ -1,10 +1,10 @@
 // app/auth/connexion/page.tsx
 "use client";
 
-import { signIn } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { useState, useCallback } from "react";
-import Link from "next/link";
+import { useState, useCallback, useEffect } from "react";
+import Link from "next/link"; // Gardez Link
 import {
   Form,
   FormControl,
@@ -19,10 +19,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 
-// --- Schema de validation Zod (peut être partagé avec la page d'inscription) ---
 const connexionSchema = z.object({
   email: z.string().email("Format d'email invalide"),
-  password: z.string().min(1, "Le mot de passe est obligatoire"), // Minimum 1 charactère
+  password: z.string().min(1, "Le mot de passe est obligatoire"),
 });
 
 type ConnexionFormValues = z.infer<typeof connexionSchema>;
@@ -30,8 +29,21 @@ type ConnexionFormValues = z.infer<typeof connexionSchema>;
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const { data: session, status } = useSession();
 
-  // --- Initialisation du formulaire avec react-hook-form ---
+  useEffect(() => {
+    if (status === "authenticated" && session) {
+      if (session.user.role === "professeur") {
+        router.push("/dashboard/professeur");
+      } else if (session.user.role === "etudiant") {
+        router.push("/dashboard/etudiant");
+      } else {
+        router.push("/dashboard");
+      }
+      router.refresh();
+    }
+  }, [session, status, router]);
+
   const form = useForm<ConnexionFormValues>({
     resolver: zodResolver(connexionSchema),
     defaultValues: {
@@ -42,21 +54,18 @@ export default function LoginPage() {
 
   const onSubmit = useCallback(
     async (values: ConnexionFormValues) => {
-      setError(null); // Reset error on each submit
+      setError(null);
       const result = await signIn("credentials", {
-        redirect: false, // Prevent automatic redirection
+        redirect: false,
         email: values.email,
         password: values.password,
       });
 
       if (result?.error) {
-        setError("Identifiants invalides"); // Clearer error message
-      } else {
-        router.push("/dashboard"); // Redirect on success
-        router.refresh()
+        setError("Identifiants invalides");
       }
     },
-    [router]
+    [] // Dependencies are empty now
   );
 
   return (
@@ -148,9 +157,15 @@ export default function LoginPage() {
 
         <div className="text-center text-sm text-gray-600">
           Pas de compte ?{" "}
+          {/* Gardez le Link, mais ajoutez un onClick */}
           <Link
             href="/auth/inscription"
             className="text-blue-600 hover:text-blue-500"
+            onClick={(e) => {
+              e.preventDefault(); // Empêche la navigation immédiate
+              router.push("/auth/inscription"); // Navigation programmatique
+              router.refresh();
+            }}
           >
             Créer un compte
           </Link>
