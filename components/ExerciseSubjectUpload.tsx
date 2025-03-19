@@ -1,15 +1,15 @@
-// components/ExerciseSubjectUpload.tsx
+// components/ExerciseSubjectUpload.tsx (CORRECTED - Accepts PDF and text)
 "use client";
 
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Loader2, Upload } from "lucide-react";
+import { Loader2, Upload } from "lucide-react"; // Import Loader2
 
 interface ExerciseSubjectUploadProps {
   id_exercice: string;
-  onUploadSuccess?: () => void;
+    onUploadSuccess?: (exerciceId?: string) => void; // Corrected callback
 }
 
 export default function ExerciseSubjectUpload({
@@ -29,16 +29,25 @@ export default function ExerciseSubjectUpload({
       try {
         const formData = new FormData();
         formData.append("file", acceptedFiles[0]);
-        formData.append("isReference", "false"); // Différence clé avec la correction
+        formData.append("isReference", "false");
 
-        const response = await fetch(`/api/exercices/${id_exercice}/upload`, {
+        // Check if id_exercice is empty. If so, use a temporary endpoint.
+        const url = id_exercice
+          ? `/api/exercices/${id_exercice}/upload`
+          : `/api/exercices/temp/upload`; // Temporary endpoint
+
+        const response = await fetch(url, {
           method: "POST",
           body: formData,
         });
 
         if (!response.ok) throw new Error("Échec du téléversement");
-        
-        onUploadSuccess?.();
+
+        // Get exercise ID from the response
+        const responseData = await response.json();
+        const uploadedExerciseId = responseData.exerciceId;
+
+        onUploadSuccess?.(uploadedExerciseId);  // Pass the exerciseId
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erreur inconnue");
       } finally {
@@ -51,8 +60,8 @@ export default function ExerciseSubjectUpload({
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      "application/pdf": [".pdf"],
-      "text/plain": [".txt", ".md"]
+      "application/pdf": [".pdf"],  // CORRECTED: Accept PDF
+      "text/plain": [".txt", ".md"] // CORRECTED: Accept TXT and MD
     },
     maxFiles: 1
   });
@@ -70,8 +79,8 @@ export default function ExerciseSubjectUpload({
         <input {...getInputProps()} />
         <Upload className="mx-auto h-8 w-8 text-muted-foreground mb-2" />
         <p className="text-sm">
-          {isDragActive 
-            ? "Déposez le sujet ici..." 
+          {isDragActive
+            ? "Déposez le sujet ici..."
             : "Glissez-déposez un PDF/texte ou cliquez"}
         </p>
         <p className="text-xs text-muted-foreground mt-1">
