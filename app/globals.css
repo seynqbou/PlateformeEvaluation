@@ -126,3 +126,31 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Styles pour les inputs */
+input::placeholder {
+  color: rgba(59, 130, 246, 0.5) !important;
+}
+
+/* Styles pour le focus des inputs */
+input:focus {
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2) !important;
+}
+
+/* Styles pour les labels */
+label {
+  color: rgba(59, 130, 246, 0.8) !important;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
