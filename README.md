@@ -1,36 +1,41 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# SQL Mastery: An AI-Powered SQL Learning Platform
 
-## Getting Started
+![SQL Mastery Logo](https://via.placeholder.com/150x150?text=SQL+Mastery+Logo) <!-- Replace with your actual logo -->
 
-First, run the development server:
+**SQL Mastery** is an innovative, immersive platform designed to help users master SQL through real-world challenges and personalized, AI-driven feedback. Whether you're a beginner or an experienced developer, SQL Mastery provides the tools and resources you need to level up your SQL skills.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Key Features
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+*   **Interactive SQL Challenges:** Practice SQL with hands-on exercises based on realistic scenarios.
+*   **Real-Time AI Feedback:** Get instant, personalized feedback on your SQL code using the power of AI.
+*   **Progress Tracking:** Monitor your learning journey with detailed analytics and visualizations.
+*   **Community Benchmarking:** Compare your skills with other learners and stay motivated.
+*   **GitHub Classroom Integration:** Seamlessly integrate exercises with GitHub Classroom for easy project management.
+*   **Multi-SGBD Support:** Work with various database systems, including PostgreSQL, MySQL, Oracle, and SQLite.
+*   **Advanced AI Assistance:** Benefit from AI-powered code correction, concept explanations, personalized exercises, and query optimization tips.
+*   **Live SQL Environment:** Test your queries in a live SQL editor with schema visualization and result previews.
+* **Ollama Integration:** The platform uses Ollama with the DeepSeek 7B model for AI-powered features.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Technology Stack
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+*   **Frontend:**
+    *   [Next.js](https://nextjs.org/): A React framework for building performant web applications.
+    *   [React](https://react.dev/): A JavaScript library for building user interfaces.
+    *   [TypeScript](https://www.typescriptlang.org/): A statically typed superset of JavaScript.
+    *   [Tailwind CSS](https://tailwindcss.com/): A utility-first CSS framework for rapid UI development.
+    *   [Framer Motion](https://www.framer.com/motion/): A library for creating smooth animations.
+    *   [React Hook Form](https://react-hook-form.com/): For managing forms.
+    *   [Zod](https://zod.dev/): For schema validation.
+    *   [Typewriter-effect](https://www.npmjs.com/package/typewriter-effect): For the typewriter effect.
+    *   [Next-auth](https://next-auth.js.org/): For authentication.
+    *   [Radix UI](https://www.radix-ui.com/): For unstyled UI components.
+*   **Backend:**
+    *   [Node.js](https://nodejs.org/): A JavaScript runtime environment.
+    *   [Prisma](https://www.prisma.io/): An ORM for database access.
+    *   [Ollama](https://ollama.com/): For running large language models locally.
+    *   [DeepSeek 7B](https://deepseekcoder.github.io/): The specific large language model used for AI features.
+*   **Database:**
+    *   [PostgreSQL](https://www.postgresql.org/): A powerful, open-source relational database.
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
