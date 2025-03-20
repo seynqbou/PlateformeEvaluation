@@ -1,7 +1,5 @@
 # SQL Mastery: An AI-Powered SQL Learning Platform
 
-![SQL Mastery Logo](https://via.placeholder.com/150x150?text=SQL+Mastery+Logo) <!-- Replace with your actual logo -->
-
 **SQL Mastery** is an innovative, immersive platform designed to help users master SQL through real-world challenges and personalized, AI-driven feedback. Whether you're a beginner or an experienced developer, SQL Mastery provides the tools and resources you need to level up your SQL skills.
 
 ## Key Features
@@ -36,9 +34,6 @@
     *   [DeepSeek 7B](https://deepseekcoder.github.io/): The specific large language model used for AI features.
 *   **Database:**
     *   [PostgreSQL](https://www.postgresql.org/): A powerful, open-source relational database.
-
-## Project Structure
-sql-training/ ├── app/ # Next.js application directory │ ├── api/ # API routes │ │ └── exercices/ # API routes for exercises │ │ └── [id]/ # Dynamic routes for specific exercises │ │ └── route.ts # API logic │ ├── auth/ # Authentication pages │ │ ├── connexion/ # Login page │ │ └── inscription/ # Registration page │ ├── dashboard/ # Dashboard pages │ │ └── professeur/ # Professor dashboard │ │ └── page.tsx # Professor dashboard logic │ │ └── etudiant/ # Student dashboard │ │ └── page.tsx # Student dashboard logic │ ├── components/ # Reusable UI components │ │ ├── ui/ # Radix UI components │ │ ├── ExerciseFileUpload.tsx # Component for uploading exercise files │ │ ├── ExerciseSubjectUpload.tsx # Component for uploading exercise subject │ │ └── SubmissionReview.tsx # Component for reviewing submissions │ ├── page.tsx # Landing page │ ├── layout.tsx # Root layout │ ├── SessionWrapper.tsx # Session provider │ └── globals.css # Global styles ├── lib/ # Utility functions │ └── utils.ts # Utility functions ├── prisma/ # Prisma schema and migrations │ └── schema.prisma # Database schema ├── public/ # Static assets ├── package.json # Project dependencies ├── tsconfig.json # TypeScript configuration └── ...
 
 ## Getting Started
 
@@ -153,22 +148,3 @@ We welcome contributions to SQL Mastery! If you'd like to contribute, please fol
 ## License
 
 MIT License
-
-## Contact
-
-[Your Name] - [Your Email]
-
----
-
-**Note:**
-
-*   Replace the placeholder logo URL with your actual logo.
-*   Update the contact information with your details.
-*   Add a `LICENSE` file if you haven't already.
-*   Fill in any missing details about the AI integration or specific API endpoints.
-*   Consider adding screenshots or GIFs to showcase the application's features.
-*   Add a section about the database schema.
-*   Add a section about the user roles (professeur, etudiant).
-
-This comprehensive README.md file will provide your collaborators with a clear understanding of the project's goals, technologies, setup, and how to contribute. Let me know if you have any other questions.
-
