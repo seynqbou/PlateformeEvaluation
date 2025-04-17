@@ -14,4 +14,4 @@ export interface Exercise {
   correction_reference?: string;
   submissionStatus: string;
   submissionId: string | null;
-}
+} 

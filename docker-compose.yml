@@ -1,12 +1,12 @@
 
 version: '3.8'
-
+ 
 services:
   postgres:
     image: postgres:15-alpine
     container_name: plateforme-evaluation-postgres
     environment:
-      POSTGRES_USER: plateforme_user  # <-- Nom d'utilisateur ici
+      POSTGRES_USER: postgres  # <-- Nom d'utilisateur ici
       POSTGRES_PASSWORD: plateforme_password # <-- Mot de passe ici
       POSTGRES_DB: plateforme_evaluation_db
     ports:

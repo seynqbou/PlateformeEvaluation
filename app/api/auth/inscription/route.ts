@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
-import { PrismaClient } from "@prisma/client";
 
 export async function POST(req: Request) {
   try {
@@ -15,9 +14,21 @@ export async function POST(req: Request) {
       );
     }
 
+    // Vérification du rôle
+    const validRoles = ["etudiant", "professeur", "administrateur"];
+    if (!validRoles.includes(role)) {
+      return NextResponse.json(
+        { error: "Rôle utilisateur invalide" },
+        { status: 400 }
+      );
+    }
+
+    // Normalisation de l'email
+    const normalizedEmail = email.toLowerCase();
+
     // Vérification du format de l'email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       return NextResponse.json(
         { error: "Format d'email invalide" },
         { status: 400 }
@@ -33,8 +44,12 @@ export async function POST(req: Request) {
     }
 
     // Vérification de l'existence de l'utilisateur
+    console.log("📌 Prisma est chargé ?", prisma);
+console.log("📌 Modèles Prisma :", Object.keys(prisma));
+
+
     const existingUser = await prisma.utilisateurs.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (existingUser) {
@@ -52,7 +67,7 @@ export async function POST(req: Request) {
       // Création de l'utilisateur principal
       const newUser = await tx.utilisateurs.create({
         data: {
-          email,
+          email: normalizedEmail,
           hash_mot_de_passe: hashedPassword,
           prenom,
           nom,
@@ -64,17 +79,17 @@ export async function POST(req: Request) {
       // Création du profil spécifique au rôle
       switch (role) {
         case "etudiant":
-          await tx.etudiants.create({
+          await tx.etudiant.create({
             data: {
               id_utilisateur: newUser.id_utilisateur,
-              numero_etudiant: `ETU-${Date.now()}`,
+              numero_etudiant: `ETU-${crypto.randomUUID()}`,
               departement: "À définir",
             },
           });
           break;
 
         case "professeur":
-          await tx.professeurs.create({
+          await tx.professeur.create({
             data: {
               id_utilisateur: newUser.id_utilisateur,
               specialisation: "À définir",
@@ -84,16 +99,13 @@ export async function POST(req: Request) {
           break;
 
         case "administrateur":
-          await tx.administrateurs.create({
+          await tx.administrateur.create({
             data: {
               id_utilisateur: newUser.id_utilisateur,
               niveau_admin: 1,
             },
           });
           break;
-
-        default:
-          throw new Error("Rôle utilisateur invalide");
       }
 
       return newUser;

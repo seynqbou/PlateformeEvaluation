@@ -29,4 +29,4 @@ declare module "next-auth" {
     id?: string;        // Identifiant (optionnel dans le token)
     role?: role_type;   // Rôle (optionnel dans le token)
   }
-}
+} 

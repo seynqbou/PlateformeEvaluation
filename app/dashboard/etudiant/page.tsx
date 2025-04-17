@@ -233,7 +233,7 @@ export default function EtudiantDashboard() {
         onChange={(e) => setSearchTerm(e.target.value)}
         className="mb-4 max-w-md"
       />
-
+ 
       {/* --- Exercise List Table --- */}
       <Table>
         <TableHeader>
